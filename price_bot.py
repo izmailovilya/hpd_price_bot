@@ -50,13 +50,16 @@ def text(message):
             tmp = check_currency(text_message)
             if tmp != "none" and orders[id]["currency"] == "none":
                 orders[id]["currency"] = tmp
+                write_order(id, orders)
                 pick_region(id)
             tmp = check_region(text_message)
             if tmp != "none" and orders[id]["region"] == "none":
                 orders[id]["region"] = tmp
+                write_order(id, orders)
                 pick_shop_delivery(id)
             if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
                 orders[id]["shop_delivery"] = float(text_message) * rates.get_currency_rate(orders[id]["currency"])
+                write_order(id, orders)
             if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
                 write_stages(id, 3)
                 write_order(id, orders)
@@ -165,6 +168,7 @@ def pick_region(id):
     bot.send_message(id, "Выбери страну", reply_markup=markup)
 
 def pick_shop_delivery(id):
+    orders = read_order(id)
     markup = types.ReplyKeyboardRemove(selective=False)
     bot.send_message(id, f"Введи стоимость доставки из магазина. Выбранная валюта: {orders[id]['currency']}.", reply_markup=markup)
 
