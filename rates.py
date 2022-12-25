@@ -17,7 +17,7 @@ def get_currency_rate(currency):
     sum = 0
     for result in o["data"]:
         sum += float(result["adv"]["price"])
-    return sum / 10 * 1.05
+    return sum / 10
 
 def get_usdt_currency(currency):
-    return get_usdt_rate()/get_currency_rate(currency)
+    return get_usdt_rate()/get_currency_rate(currency) * 1.05
