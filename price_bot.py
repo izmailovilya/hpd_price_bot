@@ -2,12 +2,23 @@ import telebot
 from telebot import types
 import re
 import rates
+import json
+
 
 bot = telebot.TeleBot("5855546110:AAF5A-S0zNj2Qx9P7osHUJ816CwoFY_xRWo")
 @bot.message_handler(commands=['start'])
 def start(message):
-    global stages
-    stages = {message.chat.id : 0}
+    write_stages(message.chat.id, 0)
+    orders = {message.chat.id : {
+            "region" : "none",
+            "shop" : "none",
+            "currency" : "none",
+            "shop_delivery" : "none",
+            "net_value" : 0,
+            "ru_delivery" : 0,
+            "items" : []
+            }}
+    write_order(message.chat.id, orders)
     markup = types.ReplyKeyboardMarkup()
     calculate = types.KeyboardButton("Рассчитать стоимость")
     markup.add(calculate)
@@ -15,27 +26,27 @@ def start(message):
 
 @bot.message_handler(content_types=["text"])
 def text(message):
-    global stages, orders
-    id = message.chat.id
+    id = str(message.chat.id)
     text_message = message.text.strip()
-
     try:
-        if stages[id] == 4:
+        orders = read_order(id)
+        if read_stages(id) == 4:
             calc(text_message, orders, id)
-            stages[id] = 0
+            write_stages(message.chat.id, 0)
 
-        if stages[id] == 3:
+        if read_stages(id) == 3:
             category = check_category(text_message)
             orders[id]["items"].append({
                 "value" : 0,
                 "delivery" : 0,
                 "category" : category
             })
-            stages[id] = 4
+            write_order(id, orders)
+            write_stages(id, 4)
             markup = types.ReplyKeyboardRemove(selective=False)
             bot.send_message(message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
 
-        if stages[id] == 2:
+        if read_stages(id) == 2:
             tmp = check_currency(text_message)
             if tmp != "none" and orders[id]["currency"] == "none":
                 orders[id]["currency"] = tmp
@@ -47,26 +58,29 @@ def text(message):
             if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
                 orders[id]["shop_delivery"] = float(text_message) * rates.get_currency_rate(orders[id]["currency"])
             if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
-                stages[id] = 3
+                write_stages(id, 3)
+                write_order(id, orders)
                 pick_category(id)
 
-        if stages[id] == 1:
+        if read_stages(id) == 1:
             text_message = text_message.lower()
             if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
                 text_message = matches.group(1)
             orders[id] = check_shop(text_message)
+            write_order(id, orders)
             if orders[id]["currency"] == 'none':
-                stages[id] = 2
+                write_stages(id, 2)
                 pick_currency(id)
             else:
-                stages[id] = 3
+                write_stages(id, 3)
                 pick_category(id)
 
-        if  stages[id] == 0:
+        if  read_stages(id) == 0:
             if text_message == "Добавить ещё одну вещь":
                 if orders[id]["region"] == "china":
                     orders[id]["shop_delivery"] *= 2
-                stages[id] = 3
+                write_order(id, orders)
+                write_stages(id, 3)
                 pick_category(id)
             if text_message == "Рассчитать стоимость" or text_message == "Создать новый заказ":
                 orders = {message.chat.id : {
@@ -76,17 +90,17 @@ def text(message):
                 "shop_delivery" : "none",
                 "net_value" : 0,
                 "ru_delivery" : 0,
-                "items" : [] # value + delivery + item_type
+                "items" : []
                 }}
+                write_order(id, orders)
                 pick_shop(id)
-                stages[id] = 1
-    except: 
-        stages[id] = 0
+                write_stages(id, 1)
+    except:
+        write_stages(id, 0)
         markup = types.ReplyKeyboardMarkup()
         calculate = types.KeyboardButton("Рассчитать стоимость")
         markup.add(calculate)
         bot.send_message(message.chat.id, 'Давай попробуем снова', reply_markup=markup)
-        
 
 def pick_shop(id):
     markup = types.ReplyKeyboardMarkup()
@@ -514,7 +528,29 @@ def calc(text_message, orders, id):
 Комиссия: {comission} руб.\n\n\
 Курс: {rates.get_usdt_currency(order["currency"]) * hidden_fees:.2f} руб.\n\
                 ', reply_markup=markup)
+        order = {id:order}
+        write_order(id, order)
     else:
         bot.send_message(id, 'Не распознал сумму')
+
+def write_stages(id, stage):
+    with open(f'stage_{id}.txt', 'w') as convert_file:
+        convert_file.write(json.dumps({id : stage}))
+
+def read_stages(id):
+    with open(f'stage_{id}.txt') as convert_file:
+        dict = json.load(convert_file)
+    return dict[str(id)]
+    
+
+def write_order(id, order):
+    with open(f'order_{id}.txt', 'w') as convert_file:
+        convert_file.write(json.dumps(order))
+
+def read_order(id):
+    with open(f'order_{id}.txt') as convert_file:
+        dict = json.load(convert_file)
+    return dict
+
 
 bot.polling(none_stop=True)
