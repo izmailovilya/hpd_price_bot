@@ -58,7 +58,7 @@ def text(message):
                 write_order(id, orders)
                 pick_shop_delivery(id)
             if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
-                orders[id]["shop_delivery"] = float(text_message) * rates.get_currency_rate(orders[id]["currency"])
+                orders[id]["shop_delivery"] = float(text_message) * rates.get_usdt_currency(orders[id]["currency"])
                 write_order(id, orders)
             if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
                 write_stages(id, 3)
