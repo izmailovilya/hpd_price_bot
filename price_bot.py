@@ -271,7 +271,7 @@ def check_shop(text_message):
         shop = "endclothing"
         region = "uk"
         currency = "gbp"
-        shop_delivery = 5 * rates.get_usdt_currency('gbp')
+        shop_delivery = 9 * rates.get_usdt_currency('gbp')
     elif text_message == "asphaltgold":
         shop = "asphaltgold"
         region = "poland"
@@ -578,7 +578,6 @@ def read_order(id):
 try:
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
 except (ConnectionError, ReadTimeout) as e:
-    print("exception")
     sys.stdout.flush()
     os.execv(sys.argv[0], sys.argv)
 else:
