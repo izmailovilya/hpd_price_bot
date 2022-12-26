@@ -3,6 +3,8 @@ from telebot import types
 import re
 import rates
 import json
+import os, sys
+from requests.exceptions import ConnectionError, ReadTimeout
 
 
 bot = telebot.TeleBot("5855546110:AAF5A-S0zNj2Qx9P7osHUJ816CwoFY_xRWo")
@@ -557,4 +559,11 @@ def read_order(id):
     return dict
 
 
-bot.polling(none_stop=True)
+try:
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+except (ConnectionError, ReadTimeout) as e:
+    print("exception")
+    sys.stdout.flush()
+    os.execv(sys.argv[0], sys.argv)
+else:
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
