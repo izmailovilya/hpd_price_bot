@@ -20,6 +20,7 @@ def start(message):
         "currency": "none",
         "shop_delivery": "none",
         "net_value": 0,
+        "net_shop_delivery" : 0,
         "ru_delivery": 0,
         "items": []
     }}
@@ -34,85 +35,103 @@ def start(message):
 def text(message):
     id = str(message.chat.id)
     text_message = message.text.strip()
-    try:
-        orders = read_order(id)
-        if read_stages(id) == 4:
-            calc(text_message, orders, id)
-            write_stages(message.chat.id, 0)
+    #try:
+    orders = read_order(id)
+    if read_stages(id) == 5:
+        if re.search(r"\d+", text_message):
+            write_stages(id, 0)
+            i = len(orders[id]["items"]) - 1
+            orders[id]["items"][i]["quantity"] = int(text_message)
+            calc_total(orders, id)
+            print_result(id, orders)
+        else:
+            raise ValueError
 
-        if read_stages(id) == 3:
-            category = check_category(text_message)
-            orders[id]["items"].append({
-                "value": 0,
-                "delivery": 0,
-                "category": category
-            })
-            write_order(id, orders)
-            write_stages(id, 4)
-            markup = types.ReplyKeyboardRemove(selective=False)
-            bot.send_message(
-                message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
-
-        if read_stages(id) == 2:
-            tmp = check_currency(text_message)
-            if tmp != "none" and orders[id]["currency"] == "none":
-                orders[id]["currency"] = tmp
-                write_order(id, orders)
-                pick_region(id)
-            tmp = check_region(text_message)
-            if tmp != "none" and orders[id]["region"] == "none":
-                orders[id]["region"] = tmp
-                write_order(id, orders)
-                pick_shop_delivery(id)
-            if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
-                orders[id]["shop_delivery"] = float(
-                    text_message) * rates.get_usdt_currency(orders[id]["currency"])
-                write_order(id, orders)
-            if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
-                write_stages(id, 3)
-                write_order(id, orders)
-                pick_category(id)
-
-        if read_stages(id) == 1:
-            text_message = text_message.lower()
-            if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
-                text_message = matches.group(1)
-            orders[id] = check_shop(text_message)
-            write_order(id, orders)
-            if orders[id]["currency"] == 'none':
-                write_stages(id, 2)
-                pick_currency(id)
-            else:
-                write_stages(id, 3)
-                pick_category(id)
-
-        if read_stages(id) == 0:
-            if text_message == "Добавить ещё одну вещь":
-                if orders[id]["region"] == "china":
-                    orders[id]["shop_delivery"] *= 2
-                write_order(id, orders)
-                write_stages(id, 3)
-                pick_category(id)
-            if text_message == "Рассчитать стоимость" or text_message == "Создать новый заказ":
-                orders = {message.chat.id: {
-                    "region": "none",
-                    "shop": "none",
-                    "currency": "none",
-                    "shop_delivery": "none",
-                    "net_value": 0,
-                    "ru_delivery": 0,
-                    "items": []
-                }}
-                write_order(id, orders)
-                pick_shop(id)
-                write_stages(id, 1)
-    except:
+    if read_stages(id) == 4:
         write_stages(id, 0)
-        markup = types.ReplyKeyboardMarkup()
-        calculate = types.KeyboardButton("Рассчитать стоимость")
-        markup.add(calculate)
+        calc_item(text_message, orders, id)
+        calc_total(orders, id)
+        print_result(id, orders)
+
+    if read_stages(id) == 3:
+        category = check_category(text_message)
+        orders[id]["items"].append({
+            "value": 0,
+            "delivery": 0,
+            "category": category,
+            "quantity": 1
+        })
+        write_order(id, orders)
+        write_stages(id, 4)
+        markup = types.ReplyKeyboardRemove(selective=False)
         bot.send_message(
-            message.chat.id, 'Давай попробуем снова', reply_markup=markup)
+            message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
+
+    if read_stages(id) == 2:
+        tmp = check_currency(text_message)
+        if tmp != "none" and orders[id]["currency"] == "none":
+            orders[id]["currency"] = tmp
+            write_order(id, orders)
+            pick_region(id)
+        tmp = check_region(text_message)
+        if tmp != "none" and orders[id]["region"] == "none":
+            orders[id]["region"] = tmp
+            write_order(id, orders)
+            pick_shop_delivery(id)
+        if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
+            orders[id]["shop_delivery"] = float(
+                text_message) * rates.get_usdt_currency(orders[id]["currency"])
+            write_order(id, orders)
+        if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
+            write_stages(id, 3)
+            write_order(id, orders)
+            pick_category(id)
+
+    if read_stages(id) == 1:
+        text_message = text_message.lower()
+        if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
+            text_message = matches.group(1)
+        orders[id] = check_shop(text_message)
+        write_order(id, orders)
+        if orders[id]["currency"] == 'none':
+            write_stages(id, 2)
+            pick_currency(id)
+        else:
+            write_stages(id, 3)
+            pick_category(id)
+
+    if read_stages(id) == 0:
+        if text_message == "Добавить ещё одну вещь":
+            write_order(id, orders)
+            write_stages(id, 3)
+            pick_category(id)
+        if text_message == "Рассчитать стоимость" or text_message == "Создать новый заказ":
+            orders = {message.chat.id: {
+                "region": "none",
+                "shop": "none",
+                "currency": "none",
+                "shop_delivery": "none",
+                "net_value": 0,
+                "net_shop_delivery" : 0,
+                "ru_delivery": 0,
+                "items": []
+            }}
+            write_order(id, orders)
+            pick_shop(id)
+            write_stages(id, 1)
+        if text_message == "Изменить количество последнего товара":
+            markup = types.ReplyKeyboardRemove(selective=False)
+            bot.send_message(message.chat.id, f"Сколько таких товаров в заказе?", reply_markup=markup)
+            write_stages(id, 5)
+
+
+    # except:
+    #     write_stages(id, 0)
+    #     markup = types.ReplyKeyboardMarkup()
+    #     calculate = types.KeyboardButton("Рассчитать стоимость")
+    #     markup.add(calculate)
+    #     bot.send_message(
+    #         message.chat.id, 'Давай попробуем снова', reply_markup=markup)
 
 
 def pick_shop(id):
@@ -370,6 +389,7 @@ def check_shop(text_message):
             "currency": "none",
             "shop_delivery": "none",
             "net_value": 0,
+            "net_shop_delivery" : 0,
             "net_delivery": 0,
             "ru_delivery": 0,
             "items": []
@@ -380,26 +400,40 @@ def check_shop(text_message):
         "currency": currency,
         "shop_delivery": shop_delivery,
         "net_value": 0,
+        "net_shop_delivery" : 0,
         "net_delivery": 0,
         "ru_delivery": 0,
         "items": []
     }
 
-
-def calc(text_message, orders, id):
-    usdt = rates.get_usdt_rate()
-    i = len(orders[id]["items"]) - 1
+def calc_total(orders, id):
     order = orders[id]
-    fixed_expenses = 180
-    order["ru_delivery"] = 0
-    hidden_fees = 1.02
-    order["net_value"] += float(text_message) * \
-        rates.get_usdt_currency(order["currency"]) * hidden_fees
-    insurance = order["net_value"] * 0.03
-    comission = order["net_value"] * 0.2 + 1500
+    items_count = 0
+    order["net_value"] = 0
+    order["net_delivery"] = 0
+    order["net_shop_delivery"] = order["shop_delivery"]
+    for item in order["items"]:
+        order["net_value"] += item["value"] * item["quantity"]
+        items_count += item["quantity"]
+        order["net_delivery"] += item["delivery"] * item["quantity"]
+    if order["region"] == "china":
+        order["ru_delivery"] = 350
+        order["net_shop_delivery"] *= items_count
+    order["net_value"] = round(order["net_value"])
+    order["net_delivery"] = round(order["net_delivery"])
+    order["net_shop_delivery"] = round(order["net_shop_delivery"])
+    write_order(id, {id:order})
+
+
+
+
+def calc_item(text_message, orders, id):
     if re.search(r"\d+", text_message):
+        usdt = rates.get_usdt_rate()
+        i = len(orders[id]["items"]) - 1
+        order = orders[id]
+        order["items"][i]["value"] =float(text_message) * rates.get_usdt_currency(order["currency"])
         if order["region"] == "china":
-            order["ru_delivery"] = 350
             if order["items"][i]["category"] == "bandage":
                 delivery = 1.45
             elif order["items"][i]["category"] == "snood":
@@ -525,32 +559,45 @@ def calc(text_message, orders, id):
             elif order["items"][i]["category"] == "boots":
                 delivery = 44.5
             delivery = delivery * 1.2 * 1.05 * usdt
-        order["net_delivery"] += delivery
-        order["net_value"] = round(order["net_value"])
-        order["net_delivery"] = round(order["net_delivery"])
-        comission = round(comission)
-        insurance = round(insurance)
-        order["shop_delivery"] = round(order["shop_delivery"])
-        result = round(order["net_delivery"] + order["ru_delivery"] + order["net_value"] +
-                       fixed_expenses + insurance + order["shop_delivery"] + comission)
-        markup = types.ReplyKeyboardMarkup()
-        retry = types.KeyboardButton("Создать новый заказ")
-        add = types.KeyboardButton("Добавить ещё одну вещь")
-        markup.add(retry, add)
-        bot.send_message(id, f'Сумма заказа: {result} руб.\n\n\
+        order["items"][i]["delivery"] = delivery
+        order = {id: order}
+        write_order(id, order)
+    else:
+        bot.send_message(id, 'Не распознал сумму')
+
+def print_result(id, orders):
+    order = orders[id]
+    fixed_expenses = 180
+    hidden_fees = 1.02
+    insurance = round(order["net_value"] * 0.03)
+    comission = round(order["net_value"] * 0.2 + 1500)
+    result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
+                       fixed_expenses + insurance + order["net_shop_delivery"] + comission)
+    markup = types.ReplyKeyboardMarkup()
+    retry = types.KeyboardButton("Создать новый заказ")
+    add = types.KeyboardButton("Добавить ещё одну вещь")
+    multiply = types.KeyboardButton("Изменить количество последнего товара")
+    markup.row(retry, add)
+    markup.row(multiply)
+    reply = '\n==========================\n\nТовары в заказе:\n'
+    index = 1
+    for item in order["items"]:
+        reply += f'\n--Товар {index}--\n\
+Категория: {item["category"]}\n\
+Стоимость: {round(item["value"])} руб.\n\
+Доставка до РФ: {round(item["delivery"])} руб.\n\
+Количество: {item["quantity"]}\n'
+        index += 1
+    bot.send_message(id, f'Сумма заказа: {result} руб.\n\n\
 Стоимость товаров: {order["net_value"]} руб.\n\
-Стоимость доставки магазина: {order["shop_delivery"]} руб.\n\
+Стоимость доставки магазина: {order["net_shop_delivery"]} руб.\n\
 Стоимость доставки до РФ: {order["net_delivery"]} руб.\n\
 Стоимость доставки по РФ: {order["ru_delivery"]} руб.\n\
 Расходы на оформление: {fixed_expenses} руб.\n\
 Страховка: {insurance} руб.\n\
 Комиссия: {comission} руб.\n\n\
 Курс: {rates.get_usdt_currency(order["currency"]) * hidden_fees:.2f} руб.\n\
-                ', reply_markup=markup)
-        order = {id: order}
-        write_order(id, order)
-    else:
-        bot.send_message(id, 'Не распознал сумму')
+            {reply}', reply_markup=markup)
 
 
 def write_stages(id, stage):
