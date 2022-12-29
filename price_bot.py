@@ -35,103 +35,105 @@ def start(message):
 def text(message):
     id = str(message.chat.id)
     text_message = message.text.strip()
-    #try:
-    orders = read_order(id)
-    if read_stages(id) == 5:
-        if re.search(r"\d+", text_message):
+    try:
+        orders = read_order(id)
+        if read_stages(id) == 5:
+            if re.search(r"\d+", text_message):
+                write_stages(id, 0)
+                i = len(orders[id]["items"]) - 1
+                orders[id]["items"][i]["quantity"] = int(text_message)
+                calc_total(orders, id)
+                print_result(id, orders)
+            else:
+                raise ValueError
+
+        if read_stages(id) == 4:
             write_stages(id, 0)
-            i = len(orders[id]["items"]) - 1
-            orders[id]["items"][i]["quantity"] = int(text_message)
+            calc_item(text_message, orders, id)
             calc_total(orders, id)
             print_result(id, orders)
-        else:
-            raise ValueError
 
-    if read_stages(id) == 4:
-        write_stages(id, 0)
-        calc_item(text_message, orders, id)
-        calc_total(orders, id)
-        print_result(id, orders)
-
-    if read_stages(id) == 3:
-        category = check_category(text_message)
-        orders[id]["items"].append({
-            "value": 0,
-            "delivery": 0,
-            "category": category,
-            "quantity": 1
-        })
-        write_order(id, orders)
-        write_stages(id, 4)
-        markup = types.ReplyKeyboardRemove(selective=False)
-        bot.send_message(
-            message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
-
-    if read_stages(id) == 2:
-        tmp = check_currency(text_message)
-        if tmp != "none" and orders[id]["currency"] == "none":
-            orders[id]["currency"] = tmp
+        if read_stages(id) == 3:
+            category = check_category(text_message)
+            orders[id]["items"].append({
+                "value": 0,
+                "delivery": 0,
+                "category": category,
+                "quantity": 1
+            })
             write_order(id, orders)
-            pick_region(id)
-        tmp = check_region(text_message)
-        if tmp != "none" and orders[id]["region"] == "none":
-            orders[id]["region"] = tmp
-            write_order(id, orders)
-            pick_shop_delivery(id)
-        if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
-            orders[id]["shop_delivery"] = float(
-                text_message) * rates.get_usdt_currency(orders[id]["currency"])
-            write_order(id, orders)
-        if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
-            write_stages(id, 3)
-            write_order(id, orders)
-            pick_category(id)
-
-    if read_stages(id) == 1:
-        text_message = text_message.lower()
-        if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
-            text_message = matches.group(1)
-        orders[id] = check_shop(text_message)
-        write_order(id, orders)
-        if orders[id]["currency"] == 'none':
-            write_stages(id, 2)
-            pick_currency(id)
-        else:
-            write_stages(id, 3)
-            pick_category(id)
-
-    if read_stages(id) == 0:
-        if text_message == "Добавить ещё одну вещь":
-            write_order(id, orders)
-            write_stages(id, 3)
-            pick_category(id)
-        if text_message == "Рассчитать стоимость" or text_message == "Создать новый заказ":
-            orders = {message.chat.id: {
-                "region": "none",
-                "shop": "none",
-                "currency": "none",
-                "shop_delivery": "none",
-                "net_value": 0,
-                "net_shop_delivery" : 0,
-                "ru_delivery": 0,
-                "items": []
-            }}
-            write_order(id, orders)
-            pick_shop(id)
-            write_stages(id, 1)
-        if text_message == "Изменить количество последнего товара":
+            write_stages(id, 4)
             markup = types.ReplyKeyboardRemove(selective=False)
-            bot.send_message(message.chat.id, f"Сколько таких товаров в заказе?", reply_markup=markup)
-            write_stages(id, 5)
+            bot.send_message(
+                message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
 
+        if read_stages(id) == 2:
+            tmp = check_currency(text_message)
+            if tmp != "none" and orders[id]["currency"] == "none":
+                orders[id]["currency"] = tmp
+                write_order(id, orders)
+                pick_region(id)
+            tmp = check_region(text_message)
+            if tmp != "none" and orders[id]["region"] == "none":
+                orders[id]["region"] = tmp
+                write_order(id, orders)
+                pick_shop_delivery(id)
+            if re.search(r"\d+", text_message) and orders[id]["shop_delivery"] == "none":
+                orders[id]["shop_delivery"] = float(
+                    text_message) * rates.get_usdt_currency(orders[id]["currency"])
+                write_order(id, orders)
+            if orders[id]["shop_delivery"] != "none" and orders[id]["region"] != "none" and orders[id]["currency"] != "none":
+                write_stages(id, 3)
+                write_order(id, orders)
+                pick_category(id)
 
-    # except:
-    #     write_stages(id, 0)
-    #     markup = types.ReplyKeyboardMarkup()
-    #     calculate = types.KeyboardButton("Рассчитать стоимость")
-    #     markup.add(calculate)
-    #     bot.send_message(
-    #         message.chat.id, 'Давай попробуем снова', reply_markup=markup)
+        if read_stages(id) == 1:
+            text_message = text_message.lower()
+            if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
+                text_message = matches.group(1)
+            orders[id] = check_shop(text_message)
+            write_order(id, orders)
+            if orders[id]["currency"] == 'none':
+                write_stages(id, 2)
+                pick_currency(id)
+            else:
+                write_stages(id, 3)
+                pick_category(id)
+
+        if read_stages(id) == 0:
+            if text_message == "Добавить ещё одну вещь":
+                write_order(id, orders)
+                write_stages(id, 3)
+                pick_category(id)
+            if text_message == "Рассчитать стоимость" or text_message == "Создать новый заказ":
+                orders = {message.chat.id: {
+                    "region": "none",
+                    "shop": "none",
+                    "currency": "none",
+                    "shop_delivery": "none",
+                    "net_value": 0,
+                    "net_shop_delivery" : 0,
+                    "ru_delivery": 0,
+                    "items": []
+                }}
+                write_order(id, orders)
+                pick_shop(id)
+                write_stages(id, 1)
+            if text_message == "Изменить количество последнего товара":
+                markup = types.ReplyKeyboardRemove(selective=False)
+                bot.send_message(message.chat.id, f"Сколько таких товаров в заказе?", reply_markup=markup)
+                write_stages(id, 5)
+            if text_message == "Изменить цену последнего товара":
+                write_stages(id, 4)
+                markup = types.ReplyKeyboardRemove(selective=False)
+                bot.send_message(message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
+    except:
+        write_stages(id, 0)
+        markup = types.ReplyKeyboardMarkup()
+        calculate = types.KeyboardButton("Рассчитать стоимость")
+        markup.add(calculate)
+        bot.send_message(
+            message.chat.id, 'Давай попробуем снова', reply_markup=markup)
 
 
 def pick_shop(id):
@@ -577,8 +579,10 @@ def print_result(id, orders):
     retry = types.KeyboardButton("Создать новый заказ")
     add = types.KeyboardButton("Добавить ещё одну вещь")
     multiply = types.KeyboardButton("Изменить количество последнего товара")
+    change_price = types.KeyboardButton("Изменить цену последнего товара")
     markup.row(retry, add)
     markup.row(multiply)
+    markup.row(change_price)
     reply = '\n==========================\n\nТовары в заказе:\n'
     index = 1
     for item in order["items"]:
