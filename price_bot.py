@@ -43,7 +43,7 @@ def text(message):
                 i = len(orders[id]["items"]) - 1
                 orders[id]["items"][i]["quantity"] = int(text_message)
                 calc_total(orders, id)
-                print_result(id, orders)
+                print_short(id, orders)
             else:
                 raise ValueError
 
@@ -51,7 +51,7 @@ def text(message):
             write_stages(id, 0)
             calc_item(text_message, orders, id)
             calc_total(orders, id)
-            print_result(id, orders)
+            print_short(id, orders)
 
         if read_stages(id) == 3:
             category = check_category(text_message)
@@ -127,6 +127,8 @@ def text(message):
                 write_stages(id, 4)
                 markup = types.ReplyKeyboardRemove(selective=False)
                 bot.send_message(message.chat.id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
+            if text_message == "Показать весь заказ":
+                print_result(id, orders)
     except:
         write_stages(id, 0)
         markup = types.ReplyKeyboardMarkup()
@@ -603,6 +605,25 @@ def print_result(id, orders):
 Курс: {rates.get_usdt_currency(order["currency"]) * hidden_fees:.2f} руб.\n\
             {reply}', reply_markup=markup)
 
+def print_short(id, orders):
+    order = orders[id]
+    fixed_expenses = 180
+    hidden_fees = 1.02
+    insurance = round(order["net_value"] * 0.03)
+    comission = round(order["net_value"] * 0.2 + 1500)
+    result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
+                       fixed_expenses + insurance + order["net_shop_delivery"] + comission)
+    markup = types.ReplyKeyboardMarkup()
+    retry = types.KeyboardButton("Создать новый заказ")
+    add = types.KeyboardButton("Добавить ещё одну вещь")
+    full = types.KeyboardButton("Показать весь заказ")
+    multiply = types.KeyboardButton("Изменить количество последнего товара")
+    change_price = types.KeyboardButton("Изменить цену последнего товара")
+    markup.row(retry, add)
+    markup.row(multiply)
+    markup.row(change_price)
+    markup.row(full)
+    bot.send_message(id, f'Сумма заказа: {result} руб.', reply_markup=markup)
 
 def write_stages(id, stage):
     with open(f'stage_{id}.txt', 'w') as convert_file:
