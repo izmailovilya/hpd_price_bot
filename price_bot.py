@@ -7,8 +7,10 @@ import os
 import sys
 from requests.exceptions import ConnectionError, ReadTimeout
 
+blocked_shops = ["asos", "tradeinn", "stockx", "sneakersnstuff", "stadiumgoods"]
 
-bot = telebot.TeleBot("5855546110:AAF5A-S0zNj2Qx9P7osHUJ816CwoFY_xRWo")
+
+bot = telebot.TeleBot(os.environ["TG_PRICE_API"])
 
 
 @bot.message_handler(commands=['start'])
@@ -123,13 +125,16 @@ def price_mode(id, stage, text_message):
             if matches := re.search(r"(?:https://)?(?:www\.)?([^\.]+)\..+", text_message):
                 text_message = matches.group(1)
             orders[id] = check_shop(text_message)
-            write_order(id, orders)
-            if orders[id]["currency"] == 'none':
-                write_stages(id, 2)
-                pick_currency(id)
+            if orders[id]["region"] == "blocked":
+                bot.send_message(id, f"К сожалениию, с {orders[id]['shop'].upper()} мы на данный момент не работаем. Нужно выбрать другой магазин.")
             else:
-                write_stages(id, 3)
-                pick_category(id)
+                write_order(id, orders)
+                if orders[id]["currency"] == 'none':
+                    write_stages(id, 2)
+                    pick_currency(id)
+                else:
+                    write_stages(id, 3)
+                    pick_category(id)
 
         if stage == 0:
             if text_message == "Добавить ещё одну вещь":
@@ -189,7 +194,6 @@ def compare_mode(id, stage, message):
 def compare(id, dict):
     payments1 = dict["1"].split()
     payments2 = dict["2"].split()
-    print(payments1, '\n', payments2)
     missing = []
     good = '<b>Совпали:</b>\n'
     bad1 = '<b>Не совпали из первого списка:</b>\n'
@@ -391,11 +395,6 @@ def check_shop(text_message):
         region = "usa"
         currency = "usd"
         shop_delivery = 8 * rates.get_usdt_currency('usd')
-    elif text_message == "asos":
-        shop = "asos"
-        region = "usa"
-        currency = "usd"
-        shop_delivery = 0
     elif text_message == "osirisshoes":
         shop = "osirisshoes"
         region = "usa"
@@ -456,6 +455,11 @@ def check_shop(text_message):
         region = "usa"
         currency = "usd"
         shop_delivery = 15 * rates.get_usdt_currency('usd')
+    elif text_message in blocked_shops:
+        shop = text_message
+        region = "blocked"
+        currency = "none"
+        shop_delivery = "none"
     else:
         shop = "other"
         return {

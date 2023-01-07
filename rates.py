@@ -20,4 +20,6 @@ def get_currency_rate(currency):
     return sum / 3
 
 def get_usdt_currency(currency):
-    return get_usdt_rate()/get_currency_rate(currency) * 1.05
+    buyer_fee = 1.05
+    hidden_fee = 1.03
+    return get_usdt_rate()/get_currency_rate(currency) * buyer_fee * hidden_fee
