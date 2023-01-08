@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from requests.exceptions import ConnectionError, ReadTimeout
+from weight import find_weight
 
 blocked_shops = ["asos", "tradeinn", "stockx", "sneakersnstuff", "stadiumgoods"]
 
@@ -31,6 +32,12 @@ def start(message):
     calculate = types.KeyboardButton("Рассчитать стоимость")
     markup.add(calculate)
     bot.send_message(message.chat.id, 'Привет!', reply_markup=markup)
+
+@bot.message_handler(commands=['stop'])
+def stop(message):
+    markup = types.ReplyKeyboardRemove(selective=False)
+    write_stages(message.chat.id, -1)
+    bot.send_message(message.chat.id, 'Хорошо, убираю эти кнопки', reply_markup=markup)
 
 
 @bot.message_handler(commands=['usdt'])
@@ -70,6 +77,10 @@ def text(message):
 def price_mode(id, stage, text_message):
     try:
         orders = read_order(id)
+        if stage == 6:
+            bot.send_message(id, find_weight(text_message))
+            write_stages(id, 3)
+            pick_category(id)
         if stage == 5:
             if re.search(r"\d+", text_message):
                 write_stages(id, 0)
@@ -88,17 +99,23 @@ def price_mode(id, stage, text_message):
 
         if stage == 3:
             category = check_category(text_message)
-            orders[id]["items"].append({
-                "value": 0,
-                "delivery": 0,
-                "category": category,
-                "quantity": 1
-            })
-            write_order(id, orders)
-            write_stages(id, 4)
-            markup = types.ReplyKeyboardRemove(selective=False)
-            bot.send_message(
-                id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
+            if category == "none":
+                write_stages(id, 6)
+                markup = types.ReplyKeyboardRemove(selective=False)
+                bot.send_message(
+                    id, f"Введи название товара, чтобы определить примерный вес по нашей истории заказов Poizon за последние пару месяцев", reply_markup=markup)
+            else:
+                orders[id]["items"].append({
+                    "value": 0,
+                    "delivery": 0,
+                    "category": category,
+                    "quantity": 1
+                })
+                write_order(id, orders)
+                write_stages(id, 4)
+                markup = types.ReplyKeyboardRemove(selective=False)
+                bot.send_message(
+                    id, f"Введи стоимость товара. Выбранная валюта: {orders[id]['currency']}", reply_markup=markup)
 
         if stage == 2:
             tmp = check_currency(text_message)
@@ -234,6 +251,7 @@ def pick_shop(id):
 
 def pick_category(id):
     markup = types.ReplyKeyboardMarkup()
+    search = types.KeyboardButton("Не уверен что выбрать?")
     boots = types.KeyboardButton("Ботинки/высокие кроссовки")
     sneakers = types.KeyboardButton("Кроссовки")
     jackets = types.KeyboardButton("Зимние куртки")
@@ -249,6 +267,7 @@ def pick_category(id):
     socks = types.KeyboardButton("Носки (3 пары)")
     snood = types.KeyboardButton("Снуд")
     bandage = types.KeyboardButton("Повязка на голову")
+    markup.row(search)
     markup.row(boots, sneakers)
     markup.row(jackets, hoodie, light_jacket)
     markup.row(t_shirts, shorts, pants)
@@ -319,6 +338,8 @@ def check_category(text_message):
         item_type = "snood"
     elif text_message == "Повязка на голову":
         item_type = "bandage"
+    elif text_message == "Не уверен что выбрать?":
+        item_type = "none"
     else:
         item_type = "none"
     return item_type
@@ -704,23 +725,23 @@ def print_short(id, orders):
 
 
 def write_stages(id, stage):
-    with open(f'stage_{id}.txt', 'w') as convert_file:
+    with open(f'./data/stage_{id}.txt', 'w') as convert_file:
         convert_file.write(json.dumps({id: stage}))
 
 
 def read_stages(id):
-    with open(f'stage_{id}.txt') as convert_file:
+    with open(f'./data/stage_{id}.txt') as convert_file:
         dict = json.load(convert_file)
     return dict[str(id)]
 
 
 def write_order(id, order):
-    with open(f'order_{id}.txt', 'w') as convert_file:
+    with open(f'./data/order_{id}.txt', 'w') as convert_file:
         convert_file.write(json.dumps(order))
 
 
 def read_order(id):
-    with open(f'order_{id}.txt') as convert_file:
+    with open(f'./data/order_{id}.txt') as convert_file:
         dict = json.load(convert_file)
     return dict
 
