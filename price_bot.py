@@ -413,8 +413,8 @@ def check_shop(text_message):
         shop_delivery = 0
     elif text_message == "nike":
         shop = "nike"
-        region = "usa"
-        currency = "usd"
+        region = "poland"
+        currency = "pln"
         shop_delivery = 8 * rates.get_usdt_currency('usd')
     elif text_message == "osirisshoes":
         shop = "osirisshoes"
@@ -671,7 +671,9 @@ def print_result(id, orders):
     fixed_expenses = 180
     hidden_fees = 1.02
     insurance = round(order["net_value"] * 0.03)
-    comission = round(order["net_value"] * 0.2 + 1500)
+    comission = round(order["net_value"] * 0.2 + 1800)
+    if order["region"] == "poland":
+        comission += 1000
     result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
                    fixed_expenses + insurance + order["net_shop_delivery"] + comission)
     markup = types.ReplyKeyboardMarkup()
@@ -708,7 +710,9 @@ def print_short(id, orders):
     fixed_expenses = 180
     hidden_fees = 1.02
     insurance = round(order["net_value"] * 0.03)
-    comission = round(order["net_value"] * 0.2 + 1500)
+    comission = round(order["net_value"] * 0.2 + 1800)
+    if order["region"] == "poland":
+        comission += 1000
     result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
                    fixed_expenses + insurance + order["net_shop_delivery"] + comission)
     markup = types.ReplyKeyboardMarkup()
