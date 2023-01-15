@@ -1,1 +1,0 @@
-{"217931504": {"region": "china", "shop": "poizon", "currency": "cny", "shop_delivery": 234.7798952618454, "net_value": 4696, "net_shop_delivery": 235, "net_delivery": 1851, "ru_delivery": 350, "items": [{"value": 4695.597905236908, "delivery": 1850.7799275, "category": "sneakers", "quantity": 1}]}}
