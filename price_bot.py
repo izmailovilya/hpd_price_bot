@@ -665,17 +665,32 @@ def calc_item(text_message, orders, id):
     else:
         bot.send_message(id, 'Не распознал сумму')
 
-
-def print_result(id, orders):
+def calc_subvalues(id, orders):
     order = orders[id]
     fixed_expenses = 180
     hidden_fees = 1.02
-    insurance = round(order["net_value"] * 0.03)
-    comission = round(order["net_value"] * 0.2 + 1800)
+    lost_insurance = round(order["net_value"] * 0.03)
+    defect_insurance = round(order["net_value"] * 0.02)
+    return_no_reason = round(order["net_value"] * 0.05)
+    rate = round(rates.get_usdt_currency(order["currency"]) * hidden_fees, 2)
+    comission = round(order["net_value"] * 0.13 + 1800)
     if order["region"] == "poland":
-        comission += 1000
+        comission += 700
     result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
-                   fixed_expenses + insurance + order["net_shop_delivery"] + comission)
+                   fixed_expenses + lost_insurance + order["net_shop_delivery"] + comission + defect_insurance + return_no_reason)
+    return {
+        "fixed_expenses" : fixed_expenses,
+        "rate" : rate,
+        "lost_insurance" : lost_insurance,
+        "defect_insurance" : defect_insurance,
+        "return_no_reason" : return_no_reason,
+        "comission" : comission,
+        "result" : result
+    }
+
+def print_result(id, orders):
+    order = orders[id]
+    subvalues = calc_subvalues(id, orders)
     markup = types.ReplyKeyboardMarkup()
     retry = types.KeyboardButton("Создать новый заказ")
     add = types.KeyboardButton("Добавить ещё одну вещь")
@@ -693,28 +708,23 @@ def print_result(id, orders):
 Доставка до РФ: {round(item["delivery"])} руб.\n\
 Количество: {item["quantity"]}\n'
         index += 1
-    bot.send_message(id, f'Сумма заказа: {result} руб.\n\n\
+    bot.send_message(id, f'<b>Сумма заказа: {subvalues["result"]} руб.</b>\n\n\
 Стоимость товаров: {order["net_value"]} руб.\n\
 Стоимость доставки магазина: {order["net_shop_delivery"]} руб.\n\
 Стоимость доставки до РФ: {order["net_delivery"]} руб.\n\
 Стоимость доставки по РФ: {order["ru_delivery"]} руб.\n\
-Расходы на оформление: {fixed_expenses} руб.\n\
-Страховка: {insurance} руб.\n\
-Комиссия: {comission} руб.\n\n\
-Курс: {rates.get_usdt_currency(order["currency"]) * hidden_fees:.2f} руб.\n\
-            {reply}', reply_markup=markup)
+Расходы на оформление: {subvalues["fixed_expenses"]} руб.\n\n\
+Страховка от утери: {subvalues["lost_insurance"]} руб.\n\
+Страховка от брака: {subvalues["defect_insurance"]} руб.\n\
+Возможность возврата: {subvalues["return_no_reason"]} руб.\n\n\
+Комиссия сервиса: {subvalues["comission"]} руб.\n\
+<i>В комиссию входит стоимость всей работы по подбору, выкупу, контролю доставки, уведомлению об изменении статуса и регулированию возможноых проблем с заказом</i>\n\n\
+Курс: {subvalues["rate"]} руб.\n\
+            {reply}', reply_markup=markup, parse_mode='HTML')
 
 
 def print_short(id, orders):
-    order = orders[id]
-    fixed_expenses = 180
-    hidden_fees = 1.02
-    insurance = round(order["net_value"] * 0.03)
-    comission = round(order["net_value"] * 0.2 + 1800)
-    if order["region"] == "poland":
-        comission += 1000
-    result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
-                   fixed_expenses + insurance + order["net_shop_delivery"] + comission)
+    subvalues = calc_subvalues(id, orders)
     markup = types.ReplyKeyboardMarkup()
     retry = types.KeyboardButton("Создать новый заказ")
     add = types.KeyboardButton("Добавить ещё одну вещь")
@@ -725,7 +735,7 @@ def print_short(id, orders):
     markup.row(multiply)
     markup.row(change_price)
     markup.row(full)
-    bot.send_message(id, f'Сумма заказа: {result} руб.', reply_markup=markup)
+    bot.send_message(id, f'Сумма заказа: {subvalues["result"]} руб.', reply_markup=markup)
 
 
 def write_stages(id, stage):
