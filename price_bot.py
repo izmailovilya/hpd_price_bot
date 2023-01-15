@@ -1,18 +1,22 @@
-import telebot
 from telebot import types
-import re
-import rates
-import json
-import os
-import sys
+import telebot, re, rates, json, os, sys
 from requests.exceptions import ConnectionError, ReadTimeout
 from weight import find_weight
+from datetime import datetime
 
 blocked_shops = ["asos", "tradeinn", "stockx", "sneakersnstuff", "stadiumgoods"]
 
 
 bot = telebot.TeleBot(os.environ["TG_PRICE_API"])
+total_price_requests = 0
+today_price_requests = 0
+now = datetime.now().timestamp()
 
+@bot.message_handler(commands=['requests'])
+def requests(message):
+    hours = round((datetime.now().timestamp() - now) / 60 / 60)
+    bot.send_message(217931504, f"Запросов цены с перезапуска: {total_price_requests}\n\
+Запросов цены за последние {hours} часов: {today_price_requests}")
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -724,6 +728,12 @@ def print_result(id, orders):
 
 
 def print_short(id, orders):
+    global total_price_requests, today_price_requests, now
+    total_price_requests += 1
+    if datetime.now().timestamp() - 86400 >= datetime.now().timestamp():
+        now = datetime.now().timestamp()
+        today_price_requests = 0
+    today_price_requests += 1
     subvalues = calc_subvalues(id, orders)
     markup = types.ReplyKeyboardMarkup()
     retry = types.KeyboardButton("Создать новый заказ")
