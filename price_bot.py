@@ -3,6 +3,7 @@ import telebot, re, rates, json, os, sys
 from requests.exceptions import ConnectionError, ReadTimeout
 from weight import find_weight
 from datetime import datetime
+import traceback
 
 blocked_shops = ["asos", "tradeinn", "stockx", "sneakersnstuff", "stadiumgoods"]
 
@@ -46,8 +47,20 @@ def stop(message):
 
 @bot.message_handler(commands=['usdt'])
 def usdt(message):
-    bot.send_message(
-        message.chat.id, f'Курс USDT на Binance: {rates.get_usdt_rate() - 1:.2f}')
+    words = message.text.split()
+    if len(words) >= 2:
+        symbol = message.text.split()[1]
+        rate = rates.get_usdt_rate()/rates.get_currency_rate(symbol)
+        if len(words) == 2:
+            bot.send_message(
+                message.chat.id, f'Курс {symbol.upper()} в рублях через P2P: {rate:.4f}')
+        if len(words) == 3:
+            value = message.text.split()[2]
+            bot.send_message(
+                message.chat.id, f'{value} {symbol.upper()} = {round(float(value) * rate)} RUB')
+    if len(words) == 1:
+        bot.send_message(
+            message.chat.id, f'Курс USDT на Binance: {rates.get_usdt_rate() - 1:.2f}') 
 
 
 @bot.message_handler(commands=['cny'])
