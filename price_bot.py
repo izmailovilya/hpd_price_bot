@@ -44,6 +44,9 @@ def stop(message):
     write_stages(message.chat.id, -1)
     bot.send_message(message.chat.id, 'Хорошо, убираю эти кнопки', reply_markup=markup)
 
+@bot.message_handler(commands=['chatid'])
+def chatid(message):
+    bot.send_message(message.chat.id, f'{message.chat.id}')
 
 @bot.message_handler(commands=['usdt'])
 def usdt(message):
