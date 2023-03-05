@@ -693,7 +693,7 @@ def calc_subvalues(id, orders):
     defect_insurance = round(order["net_value"] * 0.02)
     return_no_reason = round(order["net_value"] * 0.05)
     rate = round(rates.get_usdt_currency(order["currency"]) * hidden_fees, 2)
-    comission = round(order["net_value"] * 0.13 + 1800 - 750)
+    comission = round(order["net_value"] * 0.13 + 1800 - 750 - 750)
     result = round(order["net_delivery"] * hidden_fees + order["ru_delivery"] + order["net_value"] +
                    fixed_expenses + lost_insurance + order["net_shop_delivery"] + comission + defect_insurance + return_no_reason)
     return {
